@@ -1,6 +1,7 @@
 import pygame as pg
 import sys
 import motor.managers
+import motor.managers.font_manager
 import motor.managers.texture_manager
 import motor.managers.sound_manager
 
@@ -28,6 +29,7 @@ class MotorEngine:
 
         self.texture_manager: motor.managers.texture_manager.TextureManager = None
         self.sound_manager: motor.managers.sound_manager.SoundManager = None
+        self.font_manager: motor.managers.font_manager.FontManager = None
 
         self.input_bindings: dict[int, str] = {}
         self.special_input_bindings: dict[str, str] = {}
@@ -56,7 +58,7 @@ class MotorEngine:
         self.clock = pg.time.Clock()
         self.texture_manager = motor.managers.texture_manager.TextureManager()
         self.sound_manager = motor.managers.sound_manager.SoundManager()
-
+        self.font_manager = motor.managers.font_manager.FontManager()
     def _handle_events(self):
 
         for action in self.actions:
@@ -110,10 +112,6 @@ class MotorEngine:
         self.canvas.fill( (0,100,81) )
 
         self.scene.render(self.canvas, self.scene.camera)
-        font = pg.font.Font(None, 36)
-        text = font.render("FPS: " + str(int(self.clock.get_fps())), True, (255, 255, 255))
-        self.canvas.blit(text, (400, 10))
-
         self._render_canvas()
 
         pg.display.flip()
@@ -192,6 +190,10 @@ class MotorEngine:
             (mouse_pos.y / camera.zoom/ self.pixel_scale) + camera.position.y
         )
 
+    def load_font(self, path: str, size: int):
+        self.font_manager.load_font(path, size)
+    def get_font(self, path: str) -> pg.font.Font:
+        return self.font_manager.get_font(path)
 
     def _close(self):
         pg.quit()

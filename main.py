@@ -21,7 +21,10 @@ def main():
         "assets/images/tree.png",
         "assets/images/beetle-sheet.png",
         "assets/images/spider-shoot.png",
-        "assets/images/coin-sheet.png"
+        "assets/images/coin-sheet.png",
+        "assets/images/decoration.png",
+        "assets/images/more-shoots-card.png",
+        "assets/images/shoot-time-card.png",
     )
 
     motor.api.load_sounds(
@@ -31,6 +34,16 @@ def main():
         "assets/sounds/hurt.wav",
         "assets/sounds/powerup.wav",
         "assets/sounds/coin.wav",
+        "assets/sounds/laser.wav",
+        "assets/sounds/camera.wav",
+        "assets/sounds/high-explosion.wav",
+        "assets/sounds/powerup-2.wav",
+        "assets/sounds/powerup-3.wav",
+        "assets/sounds/placement.wav",
+    )
+
+    motor.api.load_font(
+        "assets/fonts/Symtext.ttf", 32,
     )
 
     motor.api.bind_key_to_action(pg.K_UP, "up")
@@ -43,7 +56,7 @@ def main():
     motor.api.bind_key_to_action(pg.K_a, "left")
     motor.api.bind_key_to_action(pg.K_d, "right")
 
-    motor.api.bind_key_to_action(pg.K_SPACE, "action-1")
+    motor.api.bind_key_to_action(pg.K_z, "action-1")
     motor.api.bind_mouse_left_click_to_action("action-1")
 
     motor.api.bind_key_to_action(pg.K_x, "action-2")
@@ -52,6 +65,9 @@ def main():
     motor.api.bind_key_to_action(pg.K_c, "camera-mode")
 
     motor.api.bind_key_to_action(pg.K_ESCAPE, "pause")
+
+    motor.api.bind_key_to_action(pg.K_RETURN, "raid")
+    motor.api.bind_key_to_action(pg.K_SPACE, "raid")
 
     test_scene = game.scenes.game_scene.GameScene("test-scene")
     motor.api.set_scene(test_scene)

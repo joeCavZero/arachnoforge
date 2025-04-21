@@ -56,7 +56,7 @@ class ParticleEmitter(motor.object.Object):
                 self.position.x, self.position.y, 
                 random.uniform(0, 360),
                 texture, 
-                self.speed, 
+                random.uniform(self.speed/2, self.speed),
                 self.lifetime,
                 width=self.size.x,
                 height=self.size.y
@@ -69,7 +69,7 @@ class ParticleEmitter(motor.object.Object):
                 self.position.x, self.position.y, 
                 random.uniform(0, 360),
                 texture, 
-                self.speed, 
+                random.uniform(self.speed/2, self.speed),
                 self.lifetime,
                 width=self.size.x,
                 height=self.size.y

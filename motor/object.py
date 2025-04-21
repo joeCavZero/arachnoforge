@@ -51,6 +51,6 @@ class Object:
     def center_position_by_position(self, position: pg.Vector2 | tuple[float, float]):
         position = pg.Vector2(position) if isinstance(position, tuple) else position
         self.center_position(position.x, position.y)
-    
+
     def destroy(self):
         motor.api.get_scene().delete_object_by_uid(self.uid)

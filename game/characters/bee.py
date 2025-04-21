@@ -14,7 +14,8 @@ if TYPE_CHECKING:
     import game.characters.spider
     import game.misc.web_string
 
-ATTACK_DISTANCE = 115
+STOP_DISTANCE = 128
+ATTACK_DISTANCE = 200
 ATTACK_DELAY = 2
 class Bee(game.characters.enemy.Enemy):
     def __init__(self, x: int, y: int):
@@ -45,7 +46,7 @@ class Bee(game.characters.enemy.Enemy):
         self.set_animation_by_name("default")
     
     def update(self, delta_time):
-        self.set_motion_to_closest_ally(min_distance=ATTACK_DISTANCE)
+        self.set_motion_to_closest_ally(min_distance=STOP_DISTANCE)
         
         closest_ally = self.get_closest_ally()
         if closest_ally and self.attack_timer.is_finished():

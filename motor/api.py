@@ -146,3 +146,14 @@ def play_sound(path: str, volume: float = 1.0):
     if motor_engine is None:
         raise RuntimeError("motor is not initialized.")
     return motor_engine.sound_manager.play_sound(path, volume)
+
+def load_font(path: str, size: int):
+    global motor_engine
+    if motor_engine is None:
+        raise RuntimeError("motor is not initialized.")
+    motor_engine.font_manager.load_font(path, size)
+def get_font(path: str) -> pg.font.Font | None:
+    global motor_engine
+    if motor_engine is None:
+        raise RuntimeError("motor is not initialized.")
+    return motor_engine.font_manager.get_font(path)

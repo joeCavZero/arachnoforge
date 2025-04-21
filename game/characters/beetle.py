@@ -4,6 +4,7 @@ import pygame as pg
 import game.characters.enemy
 import game.misc.bee_shoot
 import math
+import game.misc.enemy_explosion
 import motor.animation
 import motor.api
 import motor.math
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
     import game.characters.spider
     import game.misc.web_string
 
-ATTACK_DISTANCE = 15
+ATTACK_DISTANCE = 30
 ATTACK_DELAY = 2
 class Beetle(game.characters.enemy.Enemy):
     def __init__(self, x: int, y: int):
@@ -53,6 +54,21 @@ class Beetle(game.characters.enemy.Enemy):
                 self.mirrored = True
             else:
                 self.mirrored = False
+
+        if self.attack_timer.is_finished():
+            closest_ally = self.get_closest_ally()
+            if closest_ally and self.get_center_position().distance_to(closest_ally.get_center_position()) <= ATTACK_DISTANCE:
+                new_enemy_explosion = game.misc.enemy_explosion.EnemyExplosion(
+                    self.get_center_position().x,
+                    self.get_center_position().y,
+                    max_radius=100,
+                    damage= 3,
+                    explosion_sound_path="assets/sounds/high-explosion.wav"
+                )
+                motor.api.get_scene().add_object(new_enemy_explosion)
+                self.attack_timer.restart(ATTACK_DELAY)
+
+
         self.move_and_collide_with_enemies()
         self.attack_timer.update(delta_time)
         self.trapped_timer.update(delta_time)

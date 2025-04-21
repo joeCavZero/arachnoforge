@@ -14,6 +14,11 @@ import motor.timer
 if TYPE_CHECKING:
     import game.characters.spider
     import game.misc.web_string
+
+
+STOP_DISTANCE = 15
+ATTACK_DISTANCE = 128
+ATTACK_DELAY = 1.5
 class Fly(game.characters.enemy.Enemy):
     def __init__(self, x: int, y: int):
         super().__init__(
@@ -43,7 +48,7 @@ class Fly(game.characters.enemy.Enemy):
         self.set_animation_by_name("default")
     
     def update(self, delta_time):
-        self.set_motion_to_closest_ally(min_distance=15)
+        self.set_motion_to_closest_ally(min_distance=STOP_DISTANCE)
 
         
         if self.motion.length() > 0:
@@ -54,13 +59,16 @@ class Fly(game.characters.enemy.Enemy):
             self.angle = pg.math.lerp(self.angle, self.motion.x * 30, 0.1)
         else:
             self.angle = pg.math.lerp(self.angle, 0, 0.1)
+        
         if self.attack_timer.is_finished():
-            new_enemy_explosion = game.misc.enemy_explosion.EnemyExplosion(
-                self.get_center_position().x,
-                self.get_center_position().y
-            )
-            motor.api.get_scene().add_object(new_enemy_explosion)
-            self.attack_timer.restart(1)
+            closest_ally = self.get_closest_ally()
+            if closest_ally and self.get_center_position().distance_to(closest_ally.get_center_position()) <= ATTACK_DISTANCE:
+                new_enemy_explosion = game.misc.enemy_explosion.EnemyExplosion(
+                    self.get_center_position().x,
+                    self.get_center_position().y
+                )
+                motor.api.get_scene().add_object(new_enemy_explosion)
+                self.attack_timer.restart(ATTACK_DELAY)
         
         self.move_and_collide_with_enemies()
         self.attack_timer.update(delta_time)

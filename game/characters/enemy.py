@@ -3,6 +3,7 @@ import game.characters
 import game.characters.character
 import pygame as pg
 import game.effects
+import game.effects.explosion
 import game.effects.particle
 import game.misc.coin
 import motor.entity
@@ -53,9 +54,17 @@ class Enemy(game.characters.character.Character):
             new_particle = game.effects.particle.Particle(
                 self.get_center_position().x,
                 self.get_center_position().y,
-                lifetime=2,
+                speed= 30,
+                lifetime=1,
                 particle_quantity=10,
             )
+            motor.api.get_scene().add_object(new_particle)
+            new_explosion = game.effects.explosion.Explosion(
+                self.get_center_position().x,
+                self.get_center_position().y,
+                max_radius=32
+            )
+            motor.api.get_scene().add_object(new_explosion)
             self.spawn_coin()
             self.destroy()
 

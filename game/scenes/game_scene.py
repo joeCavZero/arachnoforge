@@ -1,13 +1,15 @@
 import pygame as pg
+import numpy as np
 import game.characters
-import game.characters.bee
-import game.characters.beetle
-import game.characters.fly
+import pygame.gfxdraw
 import game.characters.spider
+import game.items.more_shoots_card
+import game.items.shoot_time_card
 import game.misc
 import game.misc.flower
 import game.misc.tree
 import game.misc.web_node
+import game.tilemaps.decoration_tilemap
 import motor.api
 import motor.camera
 import game.tilemaps
@@ -30,8 +32,6 @@ HEALTH_COLOR_2 = (255, 163, 0)
 HEALTH_COLOR_3 = (255, 240, 36)
 HEALTH_COLOR_4 = (255, 0, 77)
 
-SPAWN_DELAY = 1.5
-
 class GameScene(Scene):
     def __init__(self, name: str):
         super().__init__(
@@ -41,20 +41,25 @@ class GameScene(Scene):
         )
         self.paused = False
         self.camera_mode: int = 1
+
+        self.is_raid_mode: bool = False
+        self.raid_level: int = 0
+        self.raid_info: np.ndarray = None
+        self.spawn_enemy_delay = 3
         self.spawn_enemy_timer = motor.timer.Timer()
+
         self.pause_background: pg.Surface = None
     
     def init(self):
         tilemap = game.tilemaps.main_tilemap.MainTilemap()
+        decoration_tilemap = game.tilemaps.decoration_tilemap.DecorationTilemap()
         player = game.characters.spider.Spider(400, 128)
-        wn1 = game.misc.web_node.WebNode(16,64)
-        wn2 = game.misc.web_node.WebNode(128,128)
-        wn3 = game.misc.web_node.WebNode(64,64)
-        beetle = game.characters.beetle.Beetle(200, 200)
         flower = game.misc.flower.Flower(200, 100)
         tree = game.misc.tree.Tree(32, 0)
-        self.add_objects(tilemap, player, wn1, wn2, wn3, flower, tree)
-        self.spawn_enemy_timer.restart(SPAWN_DELAY)
+        more_shoot_card = game.items.more_shoots_card.MoreShootsCard(500,500)
+        shoot_time_card = game.items.shoot_time_card.ShootTimeCard(600, 500)
+        self.add_objects(tilemap, decoration_tilemap, player, more_shoot_card, shoot_time_card, flower, tree)
+        self.spawn_enemy_timer.restart(self.spawn_enemy_delay)
     
     def update(self, delta_time):
         if motor.api.is_action_just_pressed("pause"):
@@ -70,6 +75,8 @@ class GameScene(Scene):
     def update_running_game(self, delta_time: float):
         self.z_index_layer_by_y(10)
         if motor.api.is_action_just_pressed("camera-mode"):
+            motor.api.play_sound("assets/sounds/camera.wav", volume=0.2)
+
             self.camera_mode += 1
             if self.camera_mode > 3:
                 self.camera_mode = 0
@@ -84,22 +91,110 @@ class GameScene(Scene):
                 case 3:
                     motor.api.get_camera().zoom = 0.25
 
-        if self.spawn_enemy_timer.is_finished():
-            tree_list = motor.api.get_scene().get_all_objects_by_name("tree")
-            choosen_tree = random.choice(tree_list)
-            choosen_tree.spawn( random.choice([0, 1, 2]) )
-            self.spawn_enemy_timer.restart(SPAWN_DELAY)
+        enemy_list = motor.api.get_scene().get_all_objects_by_tag("enemy")
+        if motor.api.is_action_just_pressed("raid") and len(enemy_list) <= 0:
+            self.raid_level += 1
+            self.start_raid()
+        
+        if self.is_raid_mode == True:
+            if self.enemy_counter <= 0 and len(enemy_list) <= 0:
+                self.is_raid_mode = False
+
+        if self.is_raid_mode == True:
+            if self.spawn_enemy_timer.is_finished():
+                tree_list = motor.api.get_scene().get_all_objects_by_name("tree")
+                choosen_tree = random.choice(tree_list)
+                choosen_tree.spawn( get_random_enemy_spawn_id(self.raid_info) )
+                self.spawn_enemy_timer.restart(self.spawn_enemy_delay)
+                self.enemy_counter -= 1
+            self.spawn_enemy_timer.update(delta_time)
 
         main_tilemap = motor.api.get_scene().get_object_by_name("main-tilemap")
         if main_tilemap:
             solid_list = motor.api.get_scene().get_all_objects_by_tag("solid")
             motor.entity.Entity.resolve_all_overlaps(main_tilemap, entities= solid_list)
+        
+        
         self.update_objects(delta_time)
-        self.spawn_enemy_timer.update(delta_time)
 
+    def start_raid(self):
+        fly_factor = 0
+        bee_factor = 0
+        beetle_factor = 0
+        
+        #######
+        if self.raid_level >= 1 and self.raid_level <= 3:
+            fly_factor = 1
+            bee_factor = 0
+            beetle_factor = 0
+        elif self.raid_level >= 4 and self.raid_level <= 6:
+            fly_factor = 5
+            bee_factor = 1
+            beetle_factor = 0
+        elif self.raid_level >= 7 and self.raid_level <= 9:
+            fly_factor = 15
+            bee_factor = 10
+            beetle_factor = 1
+        elif self.raid_level >= 10 and self.raid_level <= 12:
+            fly_factor = 25
+            bee_factor = 20
+            beetle_factor = 5
+        elif self.raid_level >= 13 and self.raid_level <= 15:
+            fly_factor = 35
+            bee_factor = 30
+            beetle_factor = 30
+        elif self.raid_level >= 16 and self.raid_level <= 18:
+            fly_factor = 50
+            bee_factor = 40
+            beetle_factor = 40
+        elif self.raid_level >= 19 and self.raid_level <= 30:
+            fly_factor = 1
+            bee_factor = 1
+            beetle_factor = 1
+        elif self.raid_level >= 31 and self.raid_level <= 40:
+            fly_factor = 1
+            bee_factor = 2
+            beetle_factor = 1
+        elif self.raid_level >= 41 and self.raid_level <= 50:
+            fly_factor = 1
+            bee_factor = 2
+            beetle_factor = 2
+        elif self.raid_level >= 51 and self.raid_level <= 70:
+            fly_factor = 1
+            bee_factor = 3
+            beetle_factor = 2
+        elif self.raid_level >= 71 and self.raid_level <= 100:
+            fly_factor = 1
+            bee_factor = 5
+            beetle_factor = 5
+        elif self.raid_level > 100:
+            fly_factor = 1
+            bee_factor = 10
+            beetle_factor = 10
+        #######
+        self.raid_info = gen_raid_info(fly_factor, bee_factor, beetle_factor)
+        self.spawn_enemy_delay = max( 0.5, 10 - self.raid_level * 0.5)
+        self.enemy_counter = 1 + self.raid_level * 1
+        self.spawn_enemy_timer.restart(2)
+        self.is_raid_mode = True
     def render(self, canvas: pg.Surface, camera: motor.camera.Camera):
         if self.paused:
             canvas.blit(self.pause_background, (0, 0))
+            font = motor.api.get_font("assets/fonts/Symtext.ttf")
+            font_render = font.render(
+                "PAUSED, PRESS [ESC] TO CONTINUE",
+                False,
+                (255, 255, 255)
+            )
+            value_to_scale = 0.5
+            font_render = pg.transform.scale(
+                font_render,
+                (int(font_render.get_width()*value_to_scale), int(font_render.get_height()*value_to_scale))
+            )
+            font_rect = font_render.get_rect()
+            font_rect.x = (canvas.get_width()//2) - (font_render.get_width()//2)
+            font_rect.y = (canvas.get_height()//2) - (font_render.get_height()//2)
+            canvas.blit(font_render, font_rect)
         else:
             self.render_shadows(canvas, camera)
             self.render_objects(canvas, camera)
@@ -107,95 +202,21 @@ class GameScene(Scene):
 
         
     def render_gui(self, canvas: pg.Surface, camera: motor.camera.Camera):
-        flower: 'game.misc.flower.Flower' = motor.api.get_scene().get_object_by_name("flower")
-        if flower:
-            # draw the flower health bar
-            background_bar_rect = pg.Rect(
-                24, 12,
-                224,
-                10
-            )
-            pg.draw.rect(
-                canvas,
-                BLACK_COLOR,
-                background_bar_rect
-            )
-
-            percent = flower.health / flower.max_health
-            health_bar_rect = pg.Rect(
-                24, 12,
-                224 * percent,
-                10
-            )
-
-            health_color = HEALTH_COLOR_1
-            if percent < 0.5:
-                health_color = HEALTH_COLOR_2
-            if percent < 0.25:
-                health_color = HEALTH_COLOR_3
-            if percent < 0.1:
-                health_color = HEALTH_COLOR_4
-
-            pg.draw.rect(
-                canvas,
-                health_color,
-                health_bar_rect
-            )
-        
-            flower_bar = motor.api.get_texture("assets/images/flower-bar.png")
-            canvas.blit(
-                flower_bar,
-                (8, 8)
-            )
-
-        player: 'game.characters.spider.Spider' = motor.api.get_scene().get_object_by_name("player")
-        if player:
-            # draw the player health bar
-            background_bar_rect = pg.Rect(
-                24, 28,
-                192,
-                10
-            )
-            pg.draw.rect(
-                canvas,
-                BLACK_COLOR,
-                background_bar_rect
-            )
-
-            percent = player.health / player.max_health
-            health_bar_rect = pg.Rect(
-                24, 28,
-                192 * percent,
-                10
-            )
-            health_color = HEALTH_COLOR_1
-            if percent < 0.5:
-                health_color = HEALTH_COLOR_2
-            if percent < 0.25:
-                health_color = HEALTH_COLOR_3
-            if percent < 0.1:
-                health_color = HEALTH_COLOR_4
-
-            pg.draw.rect(
-                canvas,
-                health_color,
-                health_bar_rect
-            )
-
-            spider_bar = motor.api.get_texture("assets/images/spider-bar.png")
-            canvas.blit(
-                spider_bar,
-                (8, 24)
-            )
+        self.render_flower_gui(canvas, camera)
+        self.render_player_gui(canvas, camera)
+        self.render_raid_gui(canvas, camera)
+    
     def render_shadows(self, canvas: pg.Surface, camera: motor.camera.Camera):
         web_line_list = motor.api.get_scene().get_all_objects_by_tag("web-string")
         for web_line in web_line_list:
-            if web_line.first_web_node and web_line.second_web_node:
+            first_web_node: 'game.misc.web_node.WebNode' = motor.api.get_scene().get_object_by_uid(web_line.first_web_node_uid)
+            second_web_node: 'game.misc.web_node.WebNode' = motor.api.get_scene().get_object_by_uid(web_line.second_web_node_uid)
+            if first_web_node and second_web_node:
                 pg.draw.line(
                     canvas,
                     GREEN_SHADOW_COLOR,
-                    camera.get_relative_position_by_vector2(web_line.first_web_node.get_center_position()+LINE_SHADOW_OFFSET),
-                    camera.get_relative_position_by_vector2(web_line.second_web_node.get_center_position()+LINE_SHADOW_OFFSET),
+                    camera.get_relative_position_by_vector2(first_web_node.get_center_position()+LINE_SHADOW_OFFSET),
+                    camera.get_relative_position_by_vector2(second_web_node.get_center_position()+LINE_SHADOW_OFFSET),
                     int(camera.get_relative_scalar(web_line.resistance))
                 )
         player: 'game.characters.spider.Spider' = motor.api.get_scene().get_object_by_name("player")
@@ -271,3 +292,207 @@ class GameScene(Scene):
                 GREEN_SHADOW_COLOR,
                 camera.get_relative_rect_by_rect(shadow_rect)
             )
+    
+        item_list = motor.api.get_scene().get_all_objects_by_tag("item")
+        for item in item_list:
+            shadow_rect = pg.Rect(
+                item.position.x,
+                item.position.y + 52,
+                item.size.x,
+                item.size.y/4
+            )
+            pg.draw.ellipse(
+                canvas,
+                GREEN_SHADOW_COLOR,
+                camera.get_relative_rect_by_rect(shadow_rect)
+            )
+    def render_flower_gui(self, canvas: pg.Surface, camera: motor.camera.Camera):
+        flower: 'game.misc.flower.Flower' = motor.api.get_scene().get_object_by_name("flower")
+        if flower:
+            # draw the flower health bar
+            background_bar_rect = pg.Rect(
+                24, 12,
+                224,
+                10
+            )
+            pg.draw.rect(
+                canvas,
+                BLACK_COLOR,
+                background_bar_rect
+            )
+
+            percent = flower.health / flower.max_health
+            health_bar_rect = pg.Rect(
+                24, 12,
+                224 * percent,
+                10
+            )
+
+            health_color = HEALTH_COLOR_1
+            if percent < 0.5:
+                health_color = HEALTH_COLOR_2
+            if percent < 0.25:
+                health_color = HEALTH_COLOR_3
+            if percent < 0.1:
+                health_color = HEALTH_COLOR_4
+
+            pg.draw.rect(
+                canvas,
+                health_color,
+                health_bar_rect
+            )
+        
+            flower_bar = motor.api.get_texture("assets/images/flower-bar.png")
+            canvas.blit(
+                flower_bar,
+                (8, 8)
+            )
+
+    def render_player_gui(self, canvas: pg.Surface, camera: motor.camera.Camera):
+        player: 'game.characters.spider.Spider' = motor.api.get_scene().get_object_by_name("player")
+        if player:
+            # draw the player health bar
+            background_bar_rect = pg.Rect(
+                24, 28,
+                192,
+                10
+            )
+            pg.draw.rect(
+                canvas,
+                BLACK_COLOR,
+                background_bar_rect
+            )
+
+            percent = player.health / player.max_health
+            health_bar_rect = pg.Rect(
+                24, 28,
+                192 * percent,
+                10
+            )
+            health_color = HEALTH_COLOR_1
+            if percent < 0.5:
+                health_color = HEALTH_COLOR_2
+            if percent < 0.25:
+                health_color = HEALTH_COLOR_3
+            if percent < 0.1:
+                health_color = HEALTH_COLOR_4
+
+            pg.draw.rect(
+                canvas,
+                health_color,
+                health_bar_rect
+            )
+
+            spider_bar = motor.api.get_texture("assets/images/spider-bar.png")
+            canvas.blit(
+                spider_bar,
+                (8, 24)
+            )
+            
+            # draw the percent of the shoot timer
+            radius = 16
+            
+            canvas_size = motor.api.get_motor().canvas_size.copy()
+            max_time = player.shoot_delay
+            time = player.shoot_timer.time
+            percent = max(round(time / max_time, 2), 0)
+            angle = int(360 - percent * 360)
+            
+            x = int(radius + 4)
+            y = int(canvas_size.y - radius - 4)
+            if percent > 0:
+                pygame.gfxdraw.pie(
+                    canvas,
+                    x, y, 
+                    16,
+                    0, angle,
+                    (255, 255, 255)
+                )
+            
+            # draw the percent of the node placement lol
+            node_placement_timer = player.web_node_spawn_timer.time
+            percent = max(round(node_placement_timer / game.characters.spider.WEB_NODE_SPAWN_DELAY, 2), 0)
+            angle = int(360 - percent * 360)
+            x = int(radius*3 + 8)
+            y = int(canvas_size.y - radius - 4)
+            if percent > 0:
+                pygame.gfxdraw.pie(
+                    canvas,
+                    x, y, 
+                    16,
+                    0, angle,
+                    (255, 255, 255)
+                )
+            
+            # draw the percent of the web string increment
+            web_string_timer = player.increase_web_string_timer.time
+            percent = max(round(web_string_timer / game.characters.spider.INCREASE_WEB_STRING_DELAY, 2), 0)
+            angle = int(360 - percent * 360)
+            x = int(radius*5 + 12)
+            y = int(canvas_size.y - radius - 4)
+            if percent > 0:
+                pygame.gfxdraw.pie(
+                    canvas,
+                    x, y, 
+                    16,
+                    0, angle,
+                    (255, 255, 255)
+                )
+            
+            # draw the coin count
+            font = motor.api.get_font("assets/fonts/Symtext.ttf")
+            font_render = font.render(
+                str(player.coins)+ " coins",
+                False,
+                (255, 255, 255)
+            )
+            value_to_scale = 0.5
+            font_render = pg.transform.scale(
+                font_render,
+                (int(font_render.get_width()*value_to_scale), int(font_render.get_height()*value_to_scale))
+            )
+            font_rect = font_render.get_rect()
+            font_rect.x = canvas_size.x - font_render.width - 4
+            font_rect.y = 4
+            canvas.blit(font_render, font_rect)
+
+            item_list = motor.api.get_scene().get_all_objects_by_tag("item")
+            for item in item_list:
+                if player.is_colliding_with_rect(item.get_collision_rect()):
+                    item.render_gui(canvas, camera)
+                    break
+    def render_raid_gui(self, canvas: pg.Surface, camera: motor.camera.Camera):
+        font = motor.api.get_font("assets/fonts/Symtext.ttf")
+        txt = ""
+        if self.is_raid_mode == True:
+            txt = "RAID " + str(self.raid_level) + " - " + str(self.enemy_counter) + " ENEMIES LEFT"
+        else:
+            txt = "PRESS [ENTER] TO START RAID " + str(self.raid_level+1)
+        font_render = font.render(
+            txt,
+            False,
+            (255, 255, 255)
+        )
+        value_to_scale = 0.4
+        font_render = pg.transform.scale(
+            font_render,
+            (int(font_render.get_width()*value_to_scale), int(font_render.get_height()*value_to_scale))
+        )
+        font_rect = font_render.get_rect()
+        font_rect.x = canvas.get_width() - font_render.width - 4
+        font_rect.y = canvas.get_height() - font_render.height - 4
+        canvas.blit(font_render, font_rect)
+def gen_raid_info(fly_factor: int, bee_factor: int, beetle_factor: int) -> np.ndarray:
+    raid_info = np.concatenate((
+        np.full(fly_factor, 0),
+        np.full(bee_factor, 1),
+        np.full(beetle_factor, 2)
+    ))
+    return raid_info
+
+def get_random_enemy_spawn_id(info: np.ndarray) -> int:
+    if len(info) == 0:
+        return 1
+    random_index = random.randint(0, len(info)-1)
+    return info[random_index]
+

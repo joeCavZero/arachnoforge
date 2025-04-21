@@ -13,7 +13,7 @@ class WebNode(motor.entity.Entity):
             width=32, height=32,
             angle=0,
             col_rect_x=8, col_rect_y=0, col_rect_width=16, col_rect_height=32,
-            tags=["web-node"],
+            tags=["web-node", "web-node-spawn-block"],
             z_index_y_offset=32
         )
     

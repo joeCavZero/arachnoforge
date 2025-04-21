@@ -56,6 +56,7 @@ class SpiderShoot(motor.entity.Entity):
         new_explosion = game.effects.explosion.Explosion(
             self.get_center_position().x,
             self.get_center_position().y,
+            max_radius=16
         )
         motor.api.get_scene().add_object(new_explosion)
         motor.api.get_scene().delete_object_by_uid(self.uid)

@@ -6,8 +6,11 @@ class TextureManager:
     
     def load_texture(self, path: str):
         if path not in self.textures:
-            texture = pg.image.load(path).convert_alpha()
-            self.textures[path] = texture
+            try:
+                texture = pg.image.load(path).convert_alpha()
+                self.textures[path] = texture
+            except Exception as e:
+                raise ValueError(f"Failed to load texture from {path}")
     
     def get_texture(self, path: str) -> pg.Surface | None:
         return self.textures.get(path, None)
