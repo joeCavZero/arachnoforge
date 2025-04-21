@@ -1,0 +1,61 @@
+import game.characters
+import game.characters.enemy
+import game.effects
+import game.effects.explosion
+import game.misc
+import game.tilemaps
+import game.tilemaps.main_tilemap
+import motor
+import game
+import motor.animation
+import motor.api
+import motor.entity
+import math
+import pygame as pg
+class SpiderShoot(motor.entity.Entity):
+    def __init__(self, x: float, y: float, angle: float):
+        super().__init__(
+            name="bee-shoot",
+            layer=15,
+            x=x, y=y,
+            width=32, height=32,
+            angle=angle,
+            col_rect_x=8, col_rect_y=8, col_rect_width=16, col_rect_height=16,
+            tags=["bee-shoot"],
+            z_index_y_offset=16
+        )
+        self.speed = 500
+        self.motion.x = math.cos(math.radians(self.angle))
+        self.motion.y = math.sin(math.radians(self.angle))
+    
+    def init(self):
+        self.load_texture("assets/images/spider-shoot.png")
+        idle_animation = motor.animation.Animation(
+            "idle",
+            [
+                pg.Vector2(0, 0),
+            ],
+            0,
+            loop=False
+        )
+        self.add_animation(idle_animation)
+        self.set_animation_by_name("idle")
+    
+    def update(self, delta_time):
+        main_tilemap: 'game.tilemaps.main_tilemap.MainTilemap' = motor.api.get_scene().get_object_by_name("main-tilemap")
+        if main_tilemap:
+            if main_tilemap.is_colliding_with_rect(self.get_collision_rect()):
+                self.destroy()
+        enemy_list: list['game.characters.enemy.Enemy'] = motor.api.get_scene().get_all_objects_by_tag("enemy")
+        for enemy in enemy_list:
+            if enemy.is_colliding_with_rect(self.get_collision_rect()):
+                enemy.damage(1)
+                self.destroy()
+        self.position += self.motion*delta_time*self.speed
+    def destroy(self):
+        new_explosion = game.effects.explosion.Explosion(
+            self.get_center_position().x,
+            self.get_center_position().y,
+        )
+        motor.api.get_scene().add_object(new_explosion)
+        motor.api.get_scene().delete_object_by_uid(self.uid)
