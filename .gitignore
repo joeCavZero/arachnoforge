@@ -1,2 +1,7 @@
 *.pyc
 *.txt
+*.spec
+*.exe
+dist/
+build/
+**/__pycache__/

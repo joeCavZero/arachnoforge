@@ -25,7 +25,21 @@ class Camera:
 
         self.position.x = max(min(camera_x, max_width), 0)
         self.position.y = max(min(camera_y, max_height), 0)
-        
+    def get_center_position(self) -> pg.Vector2:
+        m = motor.api.get_motor()
+        zoom = self.zoom
+        pixel_scale = m.pixel_scale
+        canvas_size = m.canvas_size
+
+        # Calcular offsets (metade da área visível no espaço do mundo)
+        offset_x = (canvas_size.x / zoom / pixel_scale) / 2
+        offset_y = (canvas_size.y / zoom / pixel_scale) / 2
+
+        # O centro é a posição da câmera (canto superior esquerdo) mais os offsets
+        center_x = self.position.x + offset_x
+        center_y = self.position.y + offset_y
+
+        return pg.Vector2(center_x, center_y)
     def get_relative_position(self, x: float, y: float) -> pg.Vector2:
         pixel_scale = motor.api.get_motor().pixel_scale
         return pg.Vector2(

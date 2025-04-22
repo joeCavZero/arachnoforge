@@ -21,7 +21,7 @@ class BeeShoot(motor.entity.Entity):
             width=16, height=16,
             angle=angle,
             col_rect_x=0, col_rect_y=0, col_rect_width=16, col_rect_height=16,
-            tags=["bee-shoot"],
+            tags=["bee-shoot", "shoot"],
             z_index_y_offset=16
         )
         self.speed = 200

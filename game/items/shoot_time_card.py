@@ -8,7 +8,7 @@ class ShootTimeCard(game.items.item.Item):
             name="shoot-time-card",
             x=x, y=y,
             texture_path="assets/images/shoot-time-card.png",
-            overlapping_message="BEST SHOOT TIME DELAY - 100 COINS",
+            overlapping_message="LESS SHOOT DELAY - 100 COINS",
         )
         self.rotation_direction = 1
 

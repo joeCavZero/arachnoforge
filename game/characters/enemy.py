@@ -41,12 +41,14 @@ class Enemy(game.characters.character.Character):
     
     def set_motion_to_closest_ally(self, min_distance: float = 0):
         closest_ally = self.get_closest_ally()
-        distance = self.get_center_position().distance_to(closest_ally.get_center_position())
-        if closest_ally and distance > min_distance and self.trapped_timer.is_finished():
-            self.motion = motor.math.vector2_direction_to_vector2(
-                self.get_center_position(),
-                closest_ally.get_center_position()
-            )
+        
+        if closest_ally and self.trapped_timer.is_finished():
+            distance = self.get_center_position().distance_to(closest_ally.get_center_position())
+            if distance > min_distance:
+                self.motion = motor.math.vector2_direction_to_vector2(
+                    self.get_center_position(),
+                    closest_ally.get_center_position()
+                )
         else:
             self.motion = pg.Vector2(0, 0)
     def kill_if_health_is_zero(self):
@@ -81,8 +83,6 @@ class Enemy(game.characters.character.Character):
                 closest_ally = ally
             
             weighted_distance = self.get_center_position().distance_to( ally.get_center_position() )
-            if ally.name == "flower":
-                weighted_distance /= 4
             if weighted_distance   <   self.get_center_position().distance_to(closest_ally.get_center_position()):
                 closest_ally = ally
         return closest_ally

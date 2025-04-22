@@ -9,6 +9,8 @@ import game.misc
 import game.misc.flower
 import game.misc.tree
 import game.misc.web_node
+import game.scenes
+import game.scenes.menu_scene
 import game.tilemaps.decoration_tilemap
 import motor.api
 import motor.camera
@@ -32,10 +34,16 @@ HEALTH_COLOR_2 = (255, 163, 0)
 HEALTH_COLOR_3 = (255, 240, 36)
 HEALTH_COLOR_4 = (255, 0, 77)
 
+MUSIC_PATHS =[
+    "assets/musics/walking-around.wav"
+]
+
+MUSIC_VOLUME = 0.4
+
 class GameScene(Scene):
-    def __init__(self, name: str):
+    def __init__(self):
         super().__init__(
-            name,
+            "game-scene",
             camera_width=6400 , camera_height=6400,
             camera_zoom=1
         )
@@ -48,30 +56,103 @@ class GameScene(Scene):
         self.spawn_enemy_delay = 3
         self.spawn_enemy_timer = motor.timer.Timer()
 
+        self.death_animation_mode = False
+        self.death_animation_timer = motor.timer.Timer()
+
         self.pause_background: pg.Surface = None
+
+        self.playing_music_channel: pg.Channel|None = None
+
+        self.is_mute = False
     
     def init(self):
+        world_size = self.camera.border.copy()
+        world_center = pg.Vector2(0, 0)
+        world_center.x = world_size.x // 2
+        world_center.y = world_size.y // 2
         tilemap = game.tilemaps.main_tilemap.MainTilemap()
         decoration_tilemap = game.tilemaps.decoration_tilemap.DecorationTilemap()
-        player = game.characters.spider.Spider(400, 128)
-        flower = game.misc.flower.Flower(200, 100)
-        tree = game.misc.tree.Tree(32, 0)
-        more_shoot_card = game.items.more_shoots_card.MoreShootsCard(500,500)
-        shoot_time_card = game.items.shoot_time_card.ShootTimeCard(600, 500)
-        self.add_objects(tilemap, decoration_tilemap, player, more_shoot_card, shoot_time_card, flower, tree)
-        self.spawn_enemy_timer.restart(self.spawn_enemy_delay)
-    
+        player = game.characters.spider.Spider(0, 0)
+        player.center_position(
+            world_center.x,
+            world_center.y+100
+        )
+        flower = game.misc.flower.Flower(0, 0)
+        flower.center_position(
+            world_center.x,
+            world_center.y
+        )
+        tree1 = game.misc.tree.Tree(0, 0)
+        tree1.center_position(
+            world_center.x,
+            256
+        )
+        tree2 = game.misc.tree.Tree(0, 0)
+        tree2.center_position(
+            world_size.x - 256,
+            world_center.y
+        )
+        tree3 = game.misc.tree.Tree(0, 0)
+        tree3.center_position(
+            world_center.x,
+            world_size.y - 256
+        )
+        tree4 = game.misc.tree.Tree(0, 0)
+        tree4.center_position(
+            256,
+            world_center.y
+        )
+        more_shoot_card = game.items.more_shoots_card.MoreShootsCard(0,0)
+        more_shoot_card.center_position(
+            world_center.x-500,
+            world_center.y
+        )
+        shoot_time_card = game.items.shoot_time_card.ShootTimeCard(0, 0)
+        shoot_time_card.center_position(
+            world_center.x+500,
+            world_center.y
+        )
+
+        self.camera.center_position(
+            player.get_center_position().x,
+            player.get_center_position().y
+        )
+
+        self.add_objects(
+            tilemap, decoration_tilemap, 
+            player, 
+            more_shoot_card, 
+            shoot_time_card, 
+            flower, 
+            tree1,
+            tree2,
+            tree3,
+            tree4
+        )
+
     def update(self, delta_time):
-        if motor.api.is_action_just_pressed("pause"):
-            self.paused = not self.paused
-            if self.paused:
-                bkg = motor.api.get_motor().canvas.copy()
-                bkg.set_alpha(55)
-                self.pause_background = bkg
-            else:
-                self.pause_background = None
+        self.update_music_system()
+        if self.death_animation_mode == True:
+            motor.api.get_motor().canvas.set_alpha( max(0, min(255, -100 + self.death_animation_timer.time * 300)) )
+            self.death_animation_timer.update(delta_time)
+            if self.death_animation_timer.is_finished():
+                self.playing_music_channel.stop()
+                menu_scene = game.scenes.menu_scene.MenuScene()
+                motor.api.get_motor().canvas.set_alpha(255)
+                motor.api.set_scene(menu_scene)
+        else:
+            if motor.api.is_action_just_pressed("pause"):
+                motor.api.play_sound("assets/sounds/blip.wav", volume=0.2)
+                self.paused = not self.paused
+                if self.paused:
+                    bkg = motor.api.get_motor().canvas.copy()
+                    bkg.set_alpha(55)
+                    self.pause_background = bkg
+                else:
+                    self.pause_background = None
         if not self.paused:
             self.update_running_game(delta_time)
+            self.check_deaths()
     def update_running_game(self, delta_time: float):
         self.z_index_layer_by_y(10)
         if motor.api.is_action_just_pressed("camera-mode"):
@@ -90,33 +171,77 @@ class GameScene(Scene):
                     motor.api.get_camera().zoom = 0.5
                 case 3:
                     motor.api.get_camera().zoom = 0.25
-
+            player = motor.api.get_scene().get_object_by_name("player")
+            motor.api.get_camera().center_position(
+                player.get_center_position().x,
+                player.get_center_position().y
+            )
         enemy_list = motor.api.get_scene().get_all_objects_by_tag("enemy")
-        if motor.api.is_action_just_pressed("raid") and len(enemy_list) <= 0:
+        if motor.api.is_action_just_pressed("raid") and self.is_raid_mode == False and len(enemy_list) <= 0:
+            motor.api.play_sound("assets/sounds/blow.wav", volume=0.2)
             self.raid_level += 1
             self.start_raid()
         
         if self.is_raid_mode == True:
             if self.enemy_counter <= 0 and len(enemy_list) <= 0:
+                motor.api.play_sound("assets/sounds/done.wav", volume=0.2)
                 self.is_raid_mode = False
 
         if self.is_raid_mode == True:
-            if self.spawn_enemy_timer.is_finished():
+            if self.spawn_enemy_timer.is_finished() and self.enemy_counter > 0:
                 tree_list = motor.api.get_scene().get_all_objects_by_name("tree")
                 choosen_tree = random.choice(tree_list)
                 choosen_tree.spawn( get_random_enemy_spawn_id(self.raid_info) )
                 self.spawn_enemy_timer.restart(self.spawn_enemy_delay)
                 self.enemy_counter -= 1
             self.spawn_enemy_timer.update(delta_time)
-
         main_tilemap = motor.api.get_scene().get_object_by_name("main-tilemap")
         if main_tilemap:
             solid_list = motor.api.get_scene().get_all_objects_by_tag("solid")
             motor.entity.Entity.resolve_all_overlaps(main_tilemap, entities= solid_list)
         
-        
-        self.update_objects(delta_time)
 
+        self.update_objects(delta_time)
+    def check_deaths(self):
+        DEATH_TIMER_DELAY = 2
+        LERP = 0.1
+        flower: 'game.misc.flower.Flower' = motor.api.get_scene().get_object_by_name("flower")
+        player: 'game.characters.spider.Spider' = motor.api.get_scene().get_object_by_name("player")
+        if flower and flower.health <= 0:
+            if self.death_animation_mode == False:
+                self.death_animation_mode = True
+                self.death_animation_timer.restart(DEATH_TIMER_DELAY)
+            camera = motor.api.get_camera()
+            camera.center_position(
+                pg.math.lerp(camera.get_center_position().x, flower.get_center_position().x, LERP),
+                pg.math.lerp(camera.get_center_position().y, flower.get_center_position().y, LERP)
+            )
+        elif player and player.health <= 0:
+            if self.death_animation_mode == False:
+                self.death_animation_mode = True
+                self.death_animation_timer.restart(DEATH_TIMER_DELAY)
+    
+    def update_music_system(self):
+        if self.playing_music_channel is None:
+            chosen_music = motor.api.get_sound(random.choice(MUSIC_PATHS))
+            self.playing_music_channel = chosen_music.play()
+            match self.is_mute:
+                case True:
+                    self.playing_music_channel.set_volume(0)
+                case False:
+                    self.playing_music_channel.set_volume(MUSIC_VOLUME)
+        
+        if self.playing_music_channel is not None and self.playing_music_channel.get_busy() == False:
+            self.playing_music_channel = None
+
+        if motor.api.is_action_just_pressed("mute"):
+            self.is_mute = not self.is_mute
+            if self.playing_music_channel is not None:
+                match self.is_mute:
+                    case True:
+                        self.playing_music_channel.set_volume(0)
+                    case False:
+                        self.playing_music_channel.set_volume(MUSIC_VOLUME)
     def start_raid(self):
         fly_factor = 0
         bee_factor = 0
@@ -169,13 +294,13 @@ class GameScene(Scene):
             beetle_factor = 5
         elif self.raid_level > 100:
             fly_factor = 1
-            bee_factor = 10
-            beetle_factor = 10
+            bee_factor = 1
+            beetle_factor = 1
         #######
         self.raid_info = gen_raid_info(fly_factor, bee_factor, beetle_factor)
-        self.spawn_enemy_delay = max( 0.5, 10 - self.raid_level * 0.5)
-        self.enemy_counter = 1 + self.raid_level * 1
-        self.spawn_enemy_timer.restart(2)
+        self.spawn_enemy_delay = max( 0.5, 5 - self.raid_level * 0.5)
+        self.enemy_counter = int(3 + self.raid_level * 1.5)
+        self.spawn_enemy_timer.restart(1)
         self.is_raid_mode = True
     def render(self, canvas: pg.Surface, camera: motor.camera.Camera):
         if self.paused:
@@ -254,9 +379,38 @@ class GameScene(Scene):
             
             shadow_rect = pg.Rect(
                 flower.position.x,
-                flower.position.y + 50,
+                flower.position.y + 56,
                 flower.size.x,
                 flower.size.y/4
+            )
+            pg.draw.ellipse(
+                canvas,
+                GREEN_SHADOW_COLOR,
+                camera.get_relative_rect_by_rect(shadow_rect)
+            )
+
+        tree_list = motor.api.get_scene().get_all_objects_by_name("tree")
+        for tree in tree_list:
+            AUX = 56
+            shadow_rect = pg.Rect(
+                tree.position.x+AUX,
+                tree.position.y + 200,
+                tree.size.x-AUX*2,
+                tree.size.y/4
+            )
+            pg.draw.ellipse(
+                canvas,
+                GREEN_SHADOW_COLOR,
+                camera.get_relative_rect_by_rect(shadow_rect)
+            )
+
+        shoot_list = motor.api.get_scene().get_all_objects_by_tag("shoot")
+        for shoot in shoot_list:
+            shadow_rect = pg.Rect(
+                shoot.position.x,
+                shoot.position.y + 40,
+                shoot.size.x,
+                shoot.size.y/4
             )
             pg.draw.ellipse(
                 canvas,
@@ -465,7 +619,8 @@ class GameScene(Scene):
         font = motor.api.get_font("assets/fonts/Symtext.ttf")
         txt = ""
         if self.is_raid_mode == True:
-            txt = "RAID " + str(self.raid_level) + " - " + str(self.enemy_counter) + " ENEMIES LEFT"
+            enemies_left = len(motor.api.get_scene().get_all_objects_by_tag("enemy")) + self.enemy_counter
+            txt = "RAID " + str(self.raid_level) + " - " + str(enemies_left) + " ENEMIES LEFT"
         else:
             txt = "PRESS [ENTER] TO START RAID " + str(self.raid_level+1)
         font_render = font.render(

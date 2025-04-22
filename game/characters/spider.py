@@ -25,8 +25,10 @@ LEG_COLOR_2 = (29,43,83)
 WEB_NODE_SPAWN_DELAY = 1
 INCREASE_WEB_STRING_DELAY = 0.5
 
+WEB_NODE_PRICE = 3
 MORE_SHOOTS_CARD_PRICE = 200
 SHOOT_TIME_CARD_PRICE = 100
+HEAL_DELAY = 4
 
 class Leg:
     def __init__(self, area_x: float, area_y: float, area_width: float, area_height: float, tight_x: float = 0, tight_y: float = 0, front: bool = False, right: bool = False):
@@ -43,9 +45,17 @@ class Leg:
 
         self.front = front
         self.right = right
+
+        #self.stepped = False
     def is_movement_finished(self) -> bool :
         return self.movement_counter <= 0.0
     def update(self, delta_time, player):
+        #if self.position.distance_to(self.target_position) < 4:
+        #    if self.stepped == False and random.randint(0, 0) == 0:
+        #        motor.api.play_sound("assets/sounds/step.wav", volume=0.01)
+        #    self.stepped = True
+        #else:
+        #    self.stepped = False
         if self.movement_counter > 0.0:
             self.movement_counter -= delta_time
 
@@ -125,13 +135,13 @@ class Spider(game.characters.character.Character):
             x, y,
             40, 40,
             0,
-            -16, -8, 72, 48,
-            health=100, speed=100,
+            -12, 0, 64, 40,
+            health=15, speed=100,
             tags=["ally"],
             z_index_y_offset=40,
         )
 
-        self.coins: int = 5000
+        self.coins: int = 30
 
         self.mode: int = 0
         self.selected_web_node_uid: int = -1
@@ -203,6 +213,13 @@ class Spider(game.characters.character.Character):
             )
         ]
     def init(self):
+
+        for leg in self.legs:
+            
+            leg.position = self.get_center_position()
+            leg.knee_position = self.get_center_position()
+            leg.target_position = self.get_center_position()
+
         self.load_texture("assets/images/spider.png")
         idle_animation = motor.animation.Animation(
             "idle",
@@ -218,6 +235,12 @@ class Spider(game.characters.character.Character):
     def update(self, delta_time):
 
         player_center = self.get_center_position()
+
+        if self.heal_timer.is_finished() and self.health < self.max_health:
+            self.heal(1)
+            self.heal_timer.restart(HEAL_DELAY)
+        self.heal_timer.update(delta_time)
+
         if motor.api.is_action_pressed("up"):
             self.motion.y = -1
         elif motor.api.is_action_pressed("down"):
@@ -237,10 +260,14 @@ class Spider(game.characters.character.Character):
         else:
             self.angle = pg.math.lerp(self.angle, 0, 0.1)
 
-        motor.api.get_camera().center_position(
-            player_center.x,
-            player_center.y
-        )
+
+        if hasattr(motor.api.get_scene(), "death_animation_mode") and motor.api.get_scene().death_animation_mode == False:
+            LERP = 0.03
+            camera = motor.api.get_camera()
+            camera.center_position(
+                pg.math.lerp( camera.get_center_position().x, player_center.x, LERP),
+                pg.math.lerp( camera.get_center_position().y, player_center.y, LERP)
+            )
 
         web_nodes_list: list[game.misc.web_node.WebNode] = motor.api.get_scene().get_all_objects_by_tag("web-node")
         web_string_list: list['game.misc.web_string.WebString'] = motor.api.get_scene().get_all_objects_by_tag("web-string")
@@ -312,21 +339,28 @@ class Spider(game.characters.character.Character):
         if motor.api.is_action_just_pressed("action-2"):
             more_shoots_card_list = motor.api.get_scene().get_all_objects_by_name("more-shoots-card")
             for more_shoots_card in more_shoots_card_list:
-                if self.coins >= MORE_SHOOTS_CARD_PRICE and more_shoots_card.is_colliding_with_rect(  self.get_collision_rect()  ):
-                    self.shoot_quantity = min( self.shoot_quantity + 1, 3 )
-                    self.coins -= MORE_SHOOTS_CARD_PRICE
-                    motor.api.play_sound("assets/sounds/powerup-2.wav", volume=0.1)
-                    more_shoots_card.take(self.shoot_quantity)
-                    self.buy_card_timer.restart(BUY_CARD_DELAY)
-            
+                if more_shoots_card.is_colliding_with_rect(  self.get_collision_rect()  ):
+                    if self.coins >= MORE_SHOOTS_CARD_PRICE:
+                        self.shoot_quantity = min( self.shoot_quantity + 1, 3 )
+                        self.coins -= MORE_SHOOTS_CARD_PRICE
+                        motor.api.play_sound("assets/sounds/powerup-2.wav", volume=0.1)
+                        more_shoots_card.take(self.shoot_quantity)
+                        self.buy_card_timer.restart(BUY_CARD_DELAY)
+                    else:
+                        motor.api.play_sound("assets/sounds/error.wav", volume=0.1)
+                        self.buy_card_timer.restart(BUY_CARD_DELAY)
             shoot_time_card_list = motor.api.get_scene().get_all_objects_by_name("shoot-time-card")
             for shoot_time_card in shoot_time_card_list:
-                if self.coins >= SHOOT_TIME_CARD_PRICE and shoot_time_card.is_colliding_with_rect(  self.get_collision_rect()  ):
-                    self.shoot_delay = max(0.1, self.shoot_delay - 0.1)
-                    self.coins -= SHOOT_TIME_CARD_PRICE
-                    motor.api.play_sound("assets/sounds/powerup-2.wav", volume=0.1)
-                    shoot_time_card.take(self.shoot_delay)
-                    self.buy_card_timer.restart(BUY_CARD_DELAY)
+                if  shoot_time_card.is_colliding_with_rect(  self.get_collision_rect()  ):
+                    if self.coins >= SHOOT_TIME_CARD_PRICE:
+                        self.shoot_delay = max(0.1, self.shoot_delay - 0.1)
+                        self.coins -= SHOOT_TIME_CARD_PRICE
+                        motor.api.play_sound("assets/sounds/powerup-2.wav", volume=0.1)
+                        shoot_time_card.take(self.shoot_delay)
+                        self.buy_card_timer.restart(BUY_CARD_DELAY)
+                    else:
+                        motor.api.play_sound("assets/sounds/error.wav", volume=0.1)
+                        self.buy_card_timer.restart(BUY_CARD_DELAY)
         if motor.api.is_action_pressed("action-2") and self.web_node_spawn_timer.is_finished() and self.buy_card_timer.is_finished():
             
             web_node_spawn_block_list = motor.api.get_scene().get_all_objects_by_tag("web-node-spawn-block")
@@ -338,15 +372,18 @@ class Spider(game.characters.character.Character):
             if is_colliding_with_some_web_node_block:
                 pass
             else:
-                motor.api.play_sound("assets/sounds/placement.wav", volume=0.3)
-                new_web_node = game.misc.web_node.WebNode(
-                    self.position.x,
-                    self.position.y
-                )
-                motor.api.get_scene().add_object(new_web_node)
-                self.web_node_spawn_timer.restart(WEB_NODE_SPAWN_DELAY)
-
-        
+                if self.coins >= WEB_NODE_PRICE:
+                    motor.api.play_sound("assets/sounds/placement.wav", volume=0.3)
+                    new_web_node = game.misc.web_node.WebNode(
+                        self.position.x,
+                        self.position.y
+                    )
+                    motor.api.get_scene().add_object(new_web_node)
+                    self.web_node_spawn_timer.restart(WEB_NODE_SPAWN_DELAY)
+                    self.coins -= WEB_NODE_PRICE
+                else:
+                    motor.api.play_sound("assets/sounds/error.wav", volume=0.1)
+                    self.web_node_spawn_timer.restart(WEB_NODE_SPAWN_DELAY)
 
         if motor.api.is_action_pressed("action-1") and self.shoot_timer.is_finished():
             motor.api.play_sound("assets/sounds/laser.wav", volume=0.1)
@@ -395,6 +432,7 @@ class Spider(game.characters.character.Character):
         if selected_web_node:
             distance = self.get_center_position().distance_to(selected_web_node.get_center_position())
             if distance > 300:
+                motor.api.play_sound("assets/sounds/crack.wav", volume=0.3)
                 self.selected_web_node_uid = -1
         for leg in self.legs:
             leg.update(delta_time, self)
@@ -407,7 +445,7 @@ class Spider(game.characters.character.Character):
         selected_web_node: game.misc.web_node.WebNode = motor.api.get_scene().get_object_by_uid(self.selected_web_node_uid)
         if selected_web_node:
             distance = self.get_center_position().distance_to(selected_web_node.get_center_position())
-            thickness = max(1, 3 - min(int(distance / 50), 5))
+            #thickness = max(1, 3 - min(int(distance / 50), 5))
             #pg.draw.line(
             #    canvas,
             #    (255,255,255),
@@ -425,7 +463,7 @@ class Spider(game.characters.character.Character):
                 [
                     camera.get_relative_position_by_vector2(selected_web_node.get_center_position()),
                     middle_point,
-                    camera.get_relative_position_by_vector2(self.get_center_position())
+                    camera.get_relative_position_by_vector2(self.get_center_position()+pg.Vector2(self.angle/5, -10)),
                 ],
                 3,
                 (255,255,255)

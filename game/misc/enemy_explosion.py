@@ -1,3 +1,4 @@
+import game.characters.character
 import motor.api
 import motor.object
 import pygame as pg
@@ -26,7 +27,7 @@ class EnemyExplosion(motor.object.Object):
         if self.radius > self.max_radius:
             self.destroy()
         if self.can_damage == True:
-            ally_list = motor.api.get_scene().get_all_objects_by_tag("ally")
+            ally_list: list[game.characters.character.Character] = motor.api.get_scene().get_all_objects_by_tag("ally")
             for ally in ally_list:
                 if self.position.distance_to(ally.get_center_position())  <  self.radius:
                     self.can_damage = False

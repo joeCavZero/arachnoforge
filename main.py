@@ -1,6 +1,7 @@
 import pygame as pg
 import game.scenes
 import game.scenes.game_scene
+import game.scenes.menu_scene
 import motor.api
 import game
 
@@ -40,6 +41,15 @@ def main():
         "assets/sounds/powerup-2.wav",
         "assets/sounds/powerup-3.wav",
         "assets/sounds/placement.wav",
+        "assets/sounds/blip.wav",
+        "assets/sounds/error.wav",
+        "assets/sounds/step.wav",
+        "assets/sounds/blow.wav",
+        "assets/sounds/done.wav",
+        "assets/sounds/crack.wav",
+
+        "assets/musics/walking-around.wav",
+        "assets/musics/foot-inside-the-water.wav",
     )
 
     motor.api.load_font(
@@ -67,10 +77,11 @@ def main():
     motor.api.bind_key_to_action(pg.K_ESCAPE, "pause")
 
     motor.api.bind_key_to_action(pg.K_RETURN, "raid")
-    motor.api.bind_key_to_action(pg.K_SPACE, "raid")
 
-    test_scene = game.scenes.game_scene.GameScene("test-scene")
-    motor.api.set_scene(test_scene)
+    motor.api.bind_key_to_action(pg.K_m, "mute")
+
+    first_scene = game.scenes.menu_scene.MenuScene()
+    motor.api.set_scene(first_scene)
 
     motor.api.run()
 

@@ -16,12 +16,12 @@ class SpiderShoot(motor.entity.Entity):
     def __init__(self, x: float, y: float, angle: float):
         super().__init__(
             name="bee-shoot",
-            layer=15,
+            layer=10,
             x=x, y=y,
             width=32, height=32,
             angle=angle,
             col_rect_x=8, col_rect_y=8, col_rect_width=16, col_rect_height=16,
-            tags=["bee-shoot"],
+            tags=["bee-shoot", "shoot"],
             z_index_y_offset=16
         )
         self.speed = 500

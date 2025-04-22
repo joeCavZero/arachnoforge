@@ -1,6 +1,7 @@
 import motor
 import motor.entity
-
+import motor.timer
+HEAL_DELAY = 4
 class Character(motor.entity.Entity):
     def __init__(self, name: str, layer: int, x: int, y: int,  
                 width: int, height: int, angle: float,
@@ -9,10 +10,6 @@ class Character(motor.entity.Entity):
                 anchored: bool = False,
                 tags: list[str] = None,
                 z_index_y_offset: float = 0.0,
-                personal_region_x: float = 0.0,
-                personal_region_y: float = 0.0,
-                personal_region_width: float = 0.0,
-                personal_region_height: float = 0.0,
                 ):
         if tags is None:
             tags = []
@@ -30,6 +27,13 @@ class Character(motor.entity.Entity):
         self.health = health
         self.max_health = health
         self.speed = speed
+        self.heal_timer = motor.timer.Timer()
     
     def damage(self, damage: int):
+        self.heal_timer.restart(HEAL_DELAY)
         self.health -= damage
+    
+    def heal(self, heal: int):
+        self.health += heal
+        if self.health > self.max_health:
+            self.health = self.max_health

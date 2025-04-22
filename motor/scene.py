@@ -94,3 +94,5 @@ class Scene:
         layer_increment = 1 / 10000
         for i, obj in enumerate(sorted_objects):
             obj.layer = layer + min(i * layer_increment, 1)
+    def close(self):
+        pass

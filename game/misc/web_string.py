@@ -3,6 +3,7 @@ import pygame.gfxdraw
 import game.characters
 import game.characters.enemy
 import game.effects
+import game.effects.explosion
 import game.effects.particle
 import motor
 import motor.api
@@ -46,6 +47,12 @@ class WebString(motor.object.Object):
         enemy_list: list['game.characters.enemy.Enemy'] = motor.api.get_scene().get_all_objects_by_tag("enemy")
         for enemy in enemy_list:
             if self.is_colliding_with_rect(enemy.get_collision_rect()) and enemy.trapped_timer.is_finished():
+                new_explosion = game.effects.explosion.Explosion(
+                    enemy.get_center_position().x,
+                    enemy.get_center_position().y,
+                    max_radius=30
+                )
+                motor.api.get_scene().add_object(new_explosion)
                 enemy.damage(1)
                 enemy.trapped_timer.restart(1)
                 self.decrease_resistance(1)
