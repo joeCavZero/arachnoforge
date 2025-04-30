@@ -2,6 +2,7 @@
 *.txt
 *.spec
 *.exe
+.vscode/
 dist/
 build/
 **/__pycache__/
